@@ -3,7 +3,7 @@
   "short_name": "2048",
   "description": "Собери плитки до 2048 и стань чемпионом!",
   "start_url": "index.html",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#f2b179",
   "orientation": "portrait",
