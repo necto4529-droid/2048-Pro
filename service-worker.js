@@ -1,15 +1,15 @@
-const CACHE_NAME = '2048-pro-cache-v1';
+const CACHE_NAME = "2048-cache-v1";
 const urlsToCache = [
-  '/',
-  '/2048-Pro/',
-  '/2048-Pro/index.html',
-  '/2048-Pro/style.css',
-  '/2048-Pro/script.js',
-  '/2048-Pro/icon.png'
+  "./",
+  "./index.html",
+  "./style.css",
+  "./script.js",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
-// Устанавливаем service worker и кэшируем нужные файлы
-self.addEventListener('install', event => {
+// Установка Service Worker и кэширование файлов
+self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
@@ -17,8 +17,8 @@ self.addEventListener('install', event => {
   );
 });
 
-// Работаем офлайн из кэша
-self.addEventListener('fetch', event => {
+// Обслуживание запросов из кэша
+self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request);
@@ -26,12 +26,16 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Обновляем кэш при изменениях
-self.addEventListener('activate', event => {
+// Обновление Service Worker
+self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
       );
     })
   );
