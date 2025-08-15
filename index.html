@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>2048 Pro — компакт</title>
+<style>
+  :root{
+    --bg:#f6f2e9; --panel:#ffffff; --grid:#cbbfb3; --cell:#d6ccc2;
+    --text:#5a524a; --muted:#8f877f; --chip:#efe7dd; --chipText:#4e453e;
+    --shadow:0 8px 22px rgba(0,0,0,.12); --border:rgba(0,0,0,.08);
+  }
+  [data-theme="dark"]{
+    --bg:#0b0f1a; --panel:#101627; --grid:#151b36; --cell:#11162f;
+    --text:#e8ebff; --muted:#9aa4bf; --chip:#151c32; --chipText:#e8ebff;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --border:rgba(255,255,255,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 10% -10%, var(--panel) 0%, var(--bg) 60%, var(--bg) 100%);
+    color:var(--text); font-family: -apple-system, Segoe UI, Roboto, Inter, Arial, system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent; overscroll-behavior:none;
+  }
+
+  /* ——— Заголовок ——— */
+  .brand{
+    max-width:920px; margin:10px auto 4px; padding:0 10px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .logo{
+    width:28px; height:28px; display:inline-block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.2));
+  }
+  .title{font-size:28px; font-weight:900; letter-spacing:.2px}
+  .pill{
+    margin-left:6px; padding:2px 10px; border-radius:999px; font-size:14px; font-weight:800; color:#3a2a00;
+    background:linear-gradient(135deg,#ffd079,#ffb24a); box-shadow:0 4px 12px rgba(255,153,0,.35), inset 0 1px 0 rgba(255,255,255,.6);
+  }
+
+  /* ——— Компактное 3-строчное меню ——— */
+  header{max-width:920px; margin:0 auto; padding:6px 10px}
+  .menu{display:flex; flex-direction:column; gap:4px; font-size:14px}
+  .row{display:flex; gap:6px; align-items:center}
+  .grow{flex:1}
+  .btn, .select, .check, .stat{
+    border:1px solid var(--border); background:var(--panel); color:var(--text);
+    padding:8px 10px; border-radius:10px; font-weight:700; box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:center; white-space:nowrap; min-height:36px
+  }
+  .btn:active{transform:translateY(1px)}
+  .ghost{background:var(--chip); color:var(--chipText)}
+  .select{padding:0 10px}
+  .select select{
+    appearance:none; background:transparent; border:0; padding:8px 0; font:inherit; color:inherit;
+  }
+  .check{gap:6px; padding:6px 10px}
+  .check input{transform:scale(1.05)}
+  .stat{justify-content:space-between; padding:6px 10px; font-weight:800}
+  .stat small{opacity:.75; font-weight:700}
+
+  main{max-width:920px; margin:0 auto; padding:6px 10px 12px; display:grid; place-items:center}
+  .wrap{
+    width:100%; max-width:620px; aspect-ratio:1/1; position:relative; padding:10px;
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow)
+  }
+  .grid{position:absolute; inset:10px; padding:8px; background:var(--grid); border-radius:12px; display:grid; gap:8px}
+  .cell{background:var(--cell); border-radius:9px; box-shadow: inset 0 1px 0 rgba(255,255,255,.28)}
+  [data-theme="dark"] .cell{box-shadow: inset 0 1px 0 rgba(255,255,255,.06)}
+  .tiles{position:absolute; inset:18px; pointer-events:none}
+
+  /* ТЕНЬ И ОБЪЁМ ПЛИТОК */
+  .tile{
+    position:absolute; display:flex; align-items:center; justify-content:center; user-select:none;
+    width:var(--cellw); height:var(--cellh); border-radius:10px; font-weight:900; font-size:28px;
+    transform: translate(var(--x), var(--y)) scale(1); transition: transform .12s ease;
+    color:#776e65; background:#eee4da;
+    /* объёмные тени: падающая + мягкая внутренняя кайма */
+    box-shadow:
+      0 14px 28px rgba(0,0,0,.18),
+      0 4px 10px rgba(0,0,0,.12),
+      inset 0 1px 2px rgba(255,255,255,.55);
+  }
+  .tile.pop{animation:pop .14s ease-out both}
+  @keyframes pop{0%{transform:translate(var(--x),var(--y)) scale(.85)}100%{transform:translate(var(--x),var(--y)) scale(1)}}
+
+  /* Классические цвета */
+  .v2{background:#eee4da;color:#776e65}.v4{background:#ede0c8;color:#776e65}
+  .v8{background:#f2b179;color:#f9f6f2}.v16{background:#f59563;color:#f9f6f2}
+  .v32{background:#f67c5f;color:#f9f6f2}.v64{background:#f65e3b;color:#f9f6f2}
+  .v128{background:#edcf72;color:#f9f6f2;font-size:24px}.v256{background:#edcc61;color:#f9f6f2;font-size:24px}
+  .v512{background:#edc850;color:#f9f6f2;font-size:24px}.v1024{background:#edc53f;color:#f9f6f2;font-size:22px}
+  .v2048{background:#edc22e;color:#f9f6f2;font-size:22px}.v4096,.v8192{background:#3c3a32;color:#f9f6f2;font-size:22px}
+
+  .toast{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.95); background:rgba(0,0,0,.35);
+         padding:10px 12px; border-radius:10px; color:#fff; box-shadow:var(--shadow); opacity:0; transition:.15s; pointer-events:none; font-size:14px}
+  .toast.show{opacity:1; transform:translate(-50%,-50%) scale(1)}
+  footer{padding:8px 10px 12px; color:var(--muted); font-size:12px; text-align:center}
+
+  @media (max-width:420px){
+    .btn,.select,.check,.stat{min-height:34px; padding:6px 8px; font-size:13px}
+    .tile{font-size:24px}
+  }
+</style>
+
+<!-- Подключение манифеста -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Цвет темы -->
+<meta name="theme-color" content="#f2b179">
+
+<!-- Иконка для iOS -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+</head>
+<body>
+
+<!-- Заголовок -->
+<div class="brand" aria-hidden="true">
+  <!-- простая SVG-иконка мишени -->
+  <svg class="logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="g" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff6a6a"/><stop offset="1" stop-color="#e51d2d"/>
+    </radialGradient></defs>
+    <circle cx="24" cy="24" r="22" fill="url(#g)"/>
+    <circle cx="24" cy="24" r="15" fill="#fff" opacity=".9"/>
+    <circle cx="24" cy="24" r="9" fill="url(#g)"/>
+    <circle cx="24" cy="24" r="3.2" fill="#fff"/>
+  </svg>
+  <div class="title">2048 <span class="pill">Pro</span></div>
+</div>
+
+<header>
+  <div class="menu">
+    <!-- Строка 1 -->
+    <div class="row">
+      <button id="undo" class="btn ghost grow" title="Отменить ход">↩ Отменить</button>
+      <button id="themeBtn" class="btn ghost grow" title="Светлая/тёмная тема">🌓 Тема</button>
+      <button id="musicBtn" class="btn ghost grow" title="Фоновая музыка">🔊 Музыка</button>
+    </div>
+    <!-- Строка 2 -->
+    <div class="row">
+      <div class="select grow">
+        <label>Размер:
+          <select id="sizeSel" aria-label="Размер поля">
+            <option>4×4</option><option>5×5</option><option>6×6</option>
+          </select>
+        </label>
+      </div>
+      <label class="check grow" title="Без отмены хода"><input id="hardcore" type="checkbox" /> Хардкор</label>
+      <button id="newGame" class="btn grow" title="Начать заново">↻ Новая</button>
+    </div>
+    <!-- Строка 3 -->
+    <div class="row">
+      <div class="stat grow"><small>Очки</small><span id="score">0</span></div>
+      <div class="stat grow"><small>Рекорд</small><span id="best">0</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap" id="wrap">
+    <div class="grid" id="grid" aria-hidden="true"></div>
+    <div class="tiles" id="tiles" role="grid" aria-label="Поле 2048"></div>
+    <div class="toast" id="toast">Игра окончена</div>
+  </div>
+</main>
+
+<footer>Жесты: свайп по полю. Клавиатура: стрелки или WASD.</footer>
+
+<script>
+(()=> {
+  /* ===== DOM ===== */
+  const tilesEl=document.getElementById('tiles'), gridBg=document.getElementById('grid'), wrap=document.getElementById('wrap');
+  const scoreEl=document.getElementById('score'), bestEl=document.getElementById('best'), toast=document.getElementById('toast');
+  const btnNew=document.getElementById('newGame'), btnUndo=document.getElementById('undo'), themeBtn=document.getElementById('themeBtn');
+  const sizeSel=document.getElementById('sizeSel'), hardcoreCb=document.getElementById('hardcore');
+  const musicBtn=document.getElementById('musicBtn');
+
+  /* ===== Настройки ===== */
+  let N = +(localStorage.getItem('size2048')||4);
+  let hardcore = localStorage.getItem('hardcore2048')==='1';
+  sizeSel.selectedIndex = Math.max(0, Math.min(2, N-4));
+  hardcoreCb.checked = hardcore;
+
+  /* ===== Аудио ===== */
+  let actx, musicOn=false, sfxOn=true;
+  function ensureAudio(){ try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} }
+  function beep({f=440,d=0.06,t='sine',v=0.06}={}){ if(!sfxOn) return; try{ ensureAudio(); const o=actx.createOscillator(), g=actx.createGain(); o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(actx.destination);o.start();g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+d);o.stop(actx.currentTime+d);}catch{} }
+  const sMove=()=>beep({f:300,d:.05,t:'square',v:.03});
+  const sMerge=()=>beep({f:520,d:.08,t:'triangle',v:.05});
+  const sOver=()=>beep({f:180,d:.12,t:'sawtooth',v:.06});
+  const sWin =()=>{beep({f:660,d:.12}); setTimeout(()=>beep({f:880,d:.12,v:.06}),110)};
+
+  function toggleMusic(){
+    ensureAudio();
+    if(musicOn){ musicOn=false; musicBtn.textContent='🔊 Музыка'; return; }
+    musicOn=true; musicBtn.textContent='🔈 Музыка: ВКЛ';
+    // Простая мелодия-петля
+    const bpm=96, beat=60/bpm; let stop=false;
+    function loop(){
+      if(!musicOn){ stop=true; return; }
+      const t0=actx.currentTime;
+      const g=actx.createGain(); g.gain.value=0.06; g.connect(actx.destination);
+      const scale=[261.63,329.63,392.00,523.25]; // C E G C5
+      for(let i=0;i<8;i++){
+        const o=actx.createOscillator(), env=actx.createGain();
+        o.type='triangle'; o.frequency.value=scale[i%scale.length];
+        o.connect(env); env.connect(g);
+        const st=t0+i*beat; env.gain.setValueAtTime(0.0001,st);
+        env.gain.exponentialRampToValueAtTime(0.12,st+0.01);
+        env.gain.exponentialRampToValueAtTime(0.0001,st+beat*0.95);
+        o.start(st); o.stop(st+beat*0.96);
+      }
+      if(!stop) setTimeout(loop, beat*1000*8);
+    }
+    loop();
+  }
+  musicBtn.addEventListener('click', toggleMusic);
+  ['touchstart','mousedown','keydown'].forEach(ev=>window.addEventListener(ev,()=>ensureAudio(),{once:true,passive:true}));
+
+  /* ===== Игра ===== */
+  const animMs=120;
+  let grid, score=0, best=0, prevState=null, idSeq=1;
+
+  const keyMap={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
+  const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
+  const copyGrid=g=>g.map(r=>r.map(t=>t?{...t}:null));
+  const gridsEqual=(a,b)=>a.flat().map(t=>t?.value||0).join(',')===b.flat().map(t=>t?.value||0).join(',');
+  const bestKey=()=>`best2048_${N}`;
+
+  function computeSizes(){
+    gridBg.style.gridTemplateColumns=`repeat(${N},1fr)`; gridBg.style.gridTemplateRows=`repeat(${N},1fr)`; gridBg.innerHTML='';
+    for(let i=0;i<N*N;i++){ const c=document.createElement('div'); c.className='cell'; gridBg.appendChild(c); }
+    const gap=8, w=tilesEl.clientWidth, h=tilesEl.clientHeight; const cw=(w-gap*(N-1))/N, ch=(h-gap*(N-1))/N;
+    tilesEl.style.setProperty('--cellw',cw+'px'); tilesEl.style.setProperty('--cellh',ch+'px');
+  }
+  function posToPx(x,y){ const gap=8, w=tilesEl.clientWidth, h=tilesEl.clientHeight; const cw=(w-gap*(N-1))/N, ch=(h-gap*(N-1))/N; return [(cw+gap)*x,(ch+gap)*y]; }
+  const tileClass=v=> v>=8192?'v8192': v>=4096?'v4096': 'v'+v;
+
+  function mountTiles(g){
+    const old=new Map([...tilesEl.children].map(el=>[+el.dataset.id,el])); const next=new Map();
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+      const t=g[y][x]; if(!t) continue; const id=t.id; let el=old.get(id); const [px,py]=posToPx(x,y);
+      if(!el){ el=document.createElement('div'); el.className=`tile ${tileClass(t.value)} pop`; el.dataset.id=id; el.dataset.v=t.value; el.textContent=t.value;
+        el.style.setProperty('--x',px+'px'); el.style.setProperty('--y',py+'px'); tilesEl.appendChild(el); }
+      else { if(+el.dataset.v!==t.value){ el.className=`tile ${tileClass(t.value)} pop`; el.dataset.v=t.value; el.textContent=t.value; }
+             el.style.transition=`transform ${animMs}ms ease`; el.style.setProperty('--x',px+'px'); el.style.setProperty('--y',py+'px'); }
+      next.set(id,el);
+    }
+    for(const [id,el] of old){ if(!next.has(id)){ el.style.transition=`transform ${animMs}ms ease, opacity ${animMs}ms ease`; el.style.opacity='0'; setTimeout(()=>el.remove(),animMs); } }
+    scoreEl.textContent=score; if(score>(+localStorage.getItem(bestKey())||0)) localStorage.setItem(bestKey(),String(score));
+    best=+localStorage.getItem(bestKey())||0; bestEl.textContent=best;
+  }
+
+  function addRandomTile(g){
+    const empty=[]; for(let y=0;y<N;y++)for(let x=0;x<N;x++) if(!g[y][x]) empty.push([x,y]);
+    if(!empty.length) return false; const [x,y]=empty[Math.floor(Math.random()*empty.length)];
+    const fourProb=hardcore?0.5:0.1; g[y][x]={id:idSeq++, value: Math.random()<(1-fourProb)?2:4}; return true;
+  }
+  function slideRowLeft(row){
+    const arr=row.filter(t=>t); let gained=0;
+    for(let i=0;i<arr.length-1;i++){ if(arr[i]&&arr[i+1]&&arr[i].value===arr[i+1].value){ arr[i]={id:idSeq++,value:arr[i].value*2}; gained+=arr[i].value; arr[i+1]=null; i++; } }
+    const compact=arr.filter(t=>t); while(compact.length<N) compact.push(null); return {row:compact,gained};
+  }
+  function rotate(g){ const r=Array.from({length:N},()=>Array(N).fill(null)); for(let y=0;y<N;y++)for(let x=0;x<N;x++) r[x][N-1-y]=g[y][x]?{...g[y][x]}:null; return r; }
+  function anyMovesLeft(g){
+    if(g.flat().some(t=>!t)) return true;
+    for(let y=0;y<N;y++)for(let x=0;x<N-1;x++) if(g[y][x]&&g[y][x+1]&&g[y][x].value===g[y][x+1].value) return true;
+    for(let y=0;y<N-1;y++)for(let x=0;x<N;x++) if(g[y][x]&&g[y+1][x]&&g[y][x].value===g[y+1][x].value) return true;
+    return false;
+  }
+  const reached2048=g=>g.flat().some(t=>t&&t.value>=2048);
+
+  function move(dir){
+    const prev=copyGrid(grid); prevState={grid:prev,score};
+    let g=copyGrid(grid), gained=0;
+    if(dir==='right'){ g=g.map(r=>r.slice().reverse()); g=g.map(r=>{const s=slideRowLeft(r); gained+=s.gained; return s.row;}); g=g.map(r=>r.slice().reverse()); }
+    if(dir==='left'){ g=g.map(r=>{const s=slideRowLeft(r); gained+=s.gained; return s.row;}); }
+    if(dir==='up'){ g=rotate(rotate(rotate(g))); g=g.map(r=>{const s=slideRowLeft(r); gained+=s.gained; return s.row;}); g=rotate(g); }
+    if(dir==='down'){ g=rotate(g); g=g.map(r=>{const s=slideRowLeft(r); gained+=s.gained; return s.row;}); g=rotate(rotate(rotate(g))); }
+    if(gridsEqual(g,grid)) return;
+    if(gained>0) sMerge(); else sMove();
+    score+=gained; grid=g; mountTiles(grid);
+    setTimeout(()=>{ addRandomTile(grid); mountTiles(grid);
+      if(reached2048(grid)) sWin();
+      if(!anyMovesLeft(grid)){ showToast('Игра окончена'); sOver(); }
+    }, 100);
+  }
+
+  /* ===== Тост ===== */
+  let toastTimer=null; function showToast(t){ toast.textContent=t; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1400); }
+
+  /* ===== Ввод ===== */
+  document.addEventListener('keydown',e=>{const d=keyMap[e.key]; if(!d) return; e.preventDefault(); move(d);},{passive:false});
+  let touchStart=null;
+  wrap.addEventListener('touchstart',e=>{const t=e.changedTouches[0]; touchStart={x:t.clientX,y:t.clientY};},{passive:true});
+  wrap.addEventListener('touchend',e=>{ if(!touchStart) return; const t=e.changedTouches[0]; const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; const ax=Math.abs(dx), ay=Math.abs(dy); if(Math.max(ax,ay)<24) return; move(ax>ay?(dx>0?'right':'left'):(dy>0?'down':'up')); touchStart=null;},{passive:true});
+
+  /* ===== Кнопки/настройки ===== */
+  btnNew.addEventListener('click',()=>start(true));
+  btnUndo.addEventListener('click',()=>{ if(hardcore||!prevState) return; grid=copyGrid(prevState.grid); score=prevState.score; mountTiles(grid); });
+  themeBtn.addEventListener('click',()=>{ const dark=document.body.getAttribute('data-theme')==='dark'; if(dark) document.body.removeAttribute('data-theme'); else document.body.setAttribute('data-theme','dark'); });
+  sizeSel.addEventListener('change',()=>{ N = 4 + sizeSel.selectedIndex; localStorage.setItem('size2048',String(N)); start(true); });
+  hardcoreCb.addEventListener('change',()=>{ hardcore=hardcoreCb.checked; localStorage.setItem('hardcore2048',hardcore?'1':'0'); btnUndo.style.opacity=hardcore?.5:1; btnUndo.style.pointerEvents=hardcore?'none':'auto'; showToast(hardcore?'Хардкор 💀':'Стандарт ✅'); });
+
+  /* ===== Адаптив: поле без прокрутки ===== */
+  function fit(){
+    const headerH=document.querySelector('header').offsetHeight + document.querySelector('.brand').offsetHeight;
+    const footerH=document.querySelector('footer').offsetHeight;
+    const vSpace=window.innerHeight - headerH - footerH - 18;
+    const hSpace=window.innerWidth - 20;
+    const size=Math.max(280, Math.min(hSpace, vSpace));
+    wrap.style.maxWidth = size + 'px';
+    wrap.style.aspectRatio = '1 / 1';
+    computeSizes(); if(grid) mountTiles(grid);
+  }
+  window.addEventListener('resize', fit);
+
+  function start(fresh=false){
+    fit();
+    grid=Array.from({length:N},()=>Array(N).fill(null)); score=0; prevState=null; idSeq=1; tilesEl.innerHTML='';
+    addRandomTile(grid); addRandomTile(grid);
+    best=+localStorage.getItem(`best2048_${N}`)||0; bestEl.textContent=best;
+    mountTiles(grid); if(fresh) showToast('Новая игра');
+    btnUndo.style.opacity=hardcore?.5:1; btnUndo.style.pointerEvents=hardcore?'none':'auto';
+  }
+
+  window.addEventListener('DOMContentLoaded', ()=>{ setTimeout(()=>{ start(); }, 0); });
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+        console.log('Service Worker зарегистрирован', reg);
+    }).catch(function(err) {
+        console.log('Ошибка регистрации Service Worker', err);
+    });
+}
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+        console.log('Service Worker зарегистрирован', reg);
+    }).catch(function(err) {
+        console.log('Ошибка регистрации Service Worker', err);
+    });
+}
+</script>
+
+
+<link rel="stylesheet" href="fx.css">
+<script src="fx.js"></script>
+<script src="hapics.js"></script>
+
+</body>
+</html>
