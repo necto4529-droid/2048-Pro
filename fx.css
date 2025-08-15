@@ -1,0 +1,65 @@
+/* fx.css — премиальные световые эффекты для плиток 2048 */
+
+:root{
+  --fx-merge-zoom: 1.12;          /* масштаб при слиянии */
+  --fx-merge-dur:  520ms;         /* длительность всего эффекта */
+  --fx-ease:       cubic-bezier(.18,.76,.18,1);
+
+  /* fallback цвет, если значение не распознано */
+  --fx-color: rgba(255, 210, 90, .75);
+}
+
+/* базовый мягкий внутренний свет (тонкий) */
+.tile{
+  box-shadow: 0 2px 0 rgba(255,255,255,.25), 0 10px 24px rgba(0,0,0,.15);
+}
+
+/* динамический цвет по data-value — подхватывается в fx.js */
+.tile.fx-glow{
+  /* тёплый мягкий ореол вокруг плитки */
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.05),
+    0 10px 24px rgba(0,0,0,.18),
+    0 0 28px 12px var(--fx-color);
+  transition: box-shadow 420ms var(--fx-ease);
+}
+
+/* вспышка — отдельный элемент .fx-burst внутри плитки */
+.fx-burst{
+  position:absolute;
+  inset:-12%;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:0;
+  transform: scale(.8);
+  filter: blur(10px);
+  background: radial-gradient( circle at 50% 50%, var(--fx-color), transparent 70% );
+  animation: fx-burst-show var(--fx-merge-dur) var(--fx-ease);
+}
+
+@keyframes fx-burst-show{
+  0%   { opacity:.0; transform:scale(.6); }
+  18%  { opacity:.85; transform:scale(1.05); }
+  55%  { opacity:.50; transform:scale(1.15); }
+  100% { opacity:0;   transform:scale(1.25); }
+}
+
+/* зум при слиянии */
+.tile.fx-merge{
+  animation: fx-merge-zoom var(--fx-merge-dur) var(--fx-ease);
+  z-index: 3;
+}
+@keyframes fx-merge-zoom{
+  0%   { transform: scale(1); }
+  28%  { transform: scale(var(--fx-merge-zoom)); }
+  100% { transform: scale(1); }
+}
+
+/* чуть более длинное появление новых плиток */
+.tile.fx-spawn{
+  animation: fx-spawn .26s var(--fx-ease);
+}
+@keyframes fx-spawn{
+  0%   { transform: scale(.6); opacity:0; }
+  100% { transform: scale(1);  opacity:1; }
+}

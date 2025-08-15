@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>2048 Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- твои стили/шрифты остаются как есть -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- === FX: плавное свечение и вспышки === -->
+  <link rel="stylesheet" href="fx.css">
+
+  <style>
+    /* Ниже — лёгкий «премиум» штрих к твоему текущему дизайну,
+       можно убрать, если не нужно. */
+    :root{
+      --board-bg:#faf8ef;
+      --panel-color:#bbada0;
+      --tile-radius:12px;
+    }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:#111; /* тёмный бэк — выглядит дороже, если захочешь — вернём светлый */
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100svh;
+    }
+    .app{
+      width:min(92vw, 560px);
+      padding:20px;
+    }
+    .title{
+      display:flex; align-items:flex-end; gap:14px; margin-bottom:14px;
+    }
+    .title h1{
+      margin:0; font-size:40px; line-height:1; letter-spacing:0.5px;
+      text-shadow:0 2px 8px rgba(0,0,0,.3);
+    }
+    .badges{
+      margin-left:auto; display:flex; gap:8px;
+    }
+    .badge{
+      background:var(--panel-color);
+      border-radius:10px;
+      padding:8px 12px;
+      font-weight:700;
+      color:#fff;
+      min-width:90px;
+      text-align:center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 6px 18px rgba(0,0,0,.25);
+    }
+    .board{
+      margin-top:14px;
+      background:var(--board-bg);
+      padding:12px;
+      border-radius:16px;
+      position:relative;
+      box-shadow:0 20px 60px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    /* сетка — подгони под свою разметку; важна только .tile */
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:12px;
+    }
+    .cell{
+      background:#cdc1b4; border-radius:var(--tile-radius); aspect-ratio:1/1;
+    }
+
+    /* Дефолтный вид плитки — твой код может переопределять,
+       эффекты из fx.css добавятся поверх. */
+    .tile{
+      position:absolute; /* большинство реализаций 2048 позиционируют плитки absolute */
+      display:flex; align-items:center; justify-content:center;
+      width:calc((100% - 3*12px)/4);
+      height:calc((100% - 3*12px)/4);
+      border-radius:var(--tile-radius);
+      font-weight:800; font-size:32px;
+      color:#776e65;
+      transition: transform 110ms cubic-bezier(.22,.61,.36,1), box-shadow 180ms ease;
+      will-change:transform;
+    }
+    /* если у тебя плитки не absolute, можно закомментить width/height/position */
+
+    .controls{
+      margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;
+    }
+    .btn{
+      flex:1;
+      background:linear-gradient(180deg,#ffb86c,#f0932b);
+      border:none; color:#1b1b1b; font-weight:800; letter-spacing:.3px;
+      padding:12px 14px; border-radius:12px; cursor:pointer;
+      box-shadow:0 10px 24px rgba(240,147,43,.35), inset 0 1px 0 rgba(255,255,255,.35);
+      transition: transform .08s ease, box-shadow .2s ease;
+    }
+    .btn:active{ transform: translateY(1px); box-shadow:0 8px 18px rgba(240,147,43,.3);}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="title">
+      <h1>2048 Pro</h1>
+      <div class="badges">
+        <div class="badge">Счёт <span id="score">0</span></div>
+        <div class="badge">Рекорд <span id="best">0</span></div>
+      </div>
+    </div>
+
+    <!-- твоя доска: если у тебя другая структура — оставь свою. Эффекты ищут .tile -->
+    <div class="board" id="board">
+      <!-- слой-подложка ячеек -->
+      <div class="grid" aria-hidden="true">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+      </div>
+
+      <!-- слой с плитками. В твоей игре он уже создаётся скриптом — оставь как есть -->
+      <div class="tiles-layer" id="tiles-layer"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="new">Новая</button>
+      <button class="btn" id="undo">Отменить</button>
+    </div>
+  </div>
+
+  <!-- твои скрипты игры подключаются ниже -->
+  <!-- <script src="script.js"></script> и т.п. -->
+
+  <!-- === FX: логика анимаций и тактильный отклик === -->
+  <script src="hapics.js"></script>
+  <script src="fx.js"></script>
+
+  <script>
+    /* Пример интеграции со счётом (оставь свою реализацию, это просто заглушка) */
+    const scoreEl = document.getElementById('score');
+    const bestEl  = document.getElementById('best');
+    let score = 0, best = Number(localStorage.getItem('best2048')||0);
+    bestEl.textContent = best;
+
+    // Пример обновления счёта, вызови из своей логики при слиянии
+    window.__fx_addScore = (delta=0)=>{
+      score += delta;
+      scoreEl.textContent = score;
+      if (score>best){ best=score; bestEl.textContent=best; localStorage.setItem('best2048', best); }
+    };
+
+    // Кнопки — подружи со своей логикой
+    document.getElementById('new').addEventListener('click', ()=>window.location.reload());
+    document.getElementById('undo').addEventListener('click', ()=>window.__fx_hint?.('UNDO'));
+  </script>
+</body>
+</html>
